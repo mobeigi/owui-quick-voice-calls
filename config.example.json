@@ -1,0 +1,32 @@
+{
+  "baseUrl": "https://openwebui.example.com/",
+  "hotkey": "F16",
+  "hotkeyMode": "uiAccess",
+  "autoHotkeyPath": "",
+  "dataDir": "%LOCALAPPDATA%\\owui-quick-voice-calls",
+  "profileDir": "browser-profile",
+  "browserChannel": "chrome",
+  "windowMode": "headless",
+  "warmStandby": true,
+  "standbyMinimized": true,
+  "standbyRefreshMs": 600000,
+  "port": 17361,
+  "startupTimeoutMs": 60000,
+  "loginTimeoutMs": 300000,
+  "stopTimeoutMs": 750,
+  "statusPollMs": 50,
+  "sounds": {
+    "enabled": true,
+    "connected": "sounds/connected.wav",
+    "hangup": "sounds/hangup.wav",
+    "errorBeep": true
+  },
+  "selectors": {
+    "confirmationDialogName": "Open link",
+    "confirmationText": "Start a voice call using your microphone?",
+    "confirmationButtonName": "Confirm",
+    "endCallName": "End call",
+    "realtimePanel": ".bridge-call",
+    "realtimeStatus": ".bridge-call .status-label"
+  }
+}

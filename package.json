@@ -1,0 +1,22 @@
+{
+  "name": "owui-quick-voice-calls",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Windows hotkey helper for quick, temporary voice calls through Open WebUI",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "start": "node src/cli.js ensure",
+    "launch": "node src/launch.js",
+    "paths": "node src/cli.js paths",
+    "migrate-profile": "node src/migrate.js",
+    "login": "node src/cli.js login",
+    "toggle": "node src/cli.js toggle",
+    "stop": "node src/cli.js stop",
+    "status": "node src/cli.js status",
+    "shutdown": "node src/cli.js shutdown",
+    "test": "node --test",
+    "check": "node --check src/main.js && node --check src/browser.js && node --check src/session.js && node --check src/cli.js && node --check src/config.js && node --check src/control.js && node --check src/bridge.js && node --check src/windows.js && node --check src/launch.js && node --check src/migrate.js"
+  },
+  "dependencies": { "playwright": "^1.56.1" }
+}

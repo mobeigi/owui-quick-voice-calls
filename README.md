@@ -53,8 +53,8 @@ fnm use
 
 fnm can select it automatically on directory changes when its shell integration
 is configured with `--use-on-cd`. Other managers that support `.node-version` can
-read the same file. This does not change Explorer's PATH: double-click launchers
-still require Node 24+ on PATH, or can be run from the configured terminal.
+read the same file. This does not change Explorer's PATH: all launchers require
+Node 24+ on PATH, or can be run from the configured terminal.
 
 ```powershell
 npm install
@@ -75,6 +75,36 @@ Copy-Item config.example.json config.json
 The launchers no longer run `npm install` automatically. If dependencies are
 missing, install them explicitly as a normal user. Installed Chrome/Edge does not
 require downloading Playwright's bundled browser.
+
+### Silent Launch and Windows Startup
+
+Double-click **[`LaunchSilent.vbs`](LaunchSilent.vbs)** to start without a console
+window flashing on screen. It runs the same Node launcher as `Launch.cmd`, keeps
+the tray icon available, and only shows a dialog if startup fails. Use it as your
+regular launcher or from the Windows Startup folder.
+
+The script uses `node.exe` from PATH and verifies it is Node 24 or newer. It does
+not search version-manager installations, select versions, or accept a custom
+Node-path override. Configure Node on your user/system PATH so that Explorer and
+startup shortcuts can find it; shell-only version-manager initialisation is not
+run automatically at sign-in. No username or installed version path is hardcoded.
+
+To launch automatically when you sign in:
+
+1. Press **Win + R**, enter `shell:startup`, and create a shortcut in that folder.
+2. Use this target, replacing the project location with your own:
+
+   ```text
+   wscript.exe "C:\path\to\owui-quick-voice-calls\LaunchSilent.vbs"
+   ```
+
+3. Leave **Run as administrator** unchecked. The launcher uses the script's own
+   directory, so a shortcut does not need a custom **Start in** value.
+
+Use `wscript.exe`, not the console-based `cscript.exe`. Windows Script Host and its
+VBScript component must be enabled. Setup/login windows and genuine AHK error
+dialogs can still appear. Delete the Startup shortcut to disable automatic startup;
+the script does not create a shortcut or scheduled task itself.
 
 ## Configuration
 

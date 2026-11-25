@@ -192,7 +192,7 @@ export class VoiceBrowser {
     this.assertSafe();
     const url = new URL(this.page.url());
     if (url.origin !== new URL(this.config.baseUrl).origin || url.pathname !== '/'
-      || url.searchParams.get('temporary-chat') !== 'true' || url.searchParams.get('call') !== 'true') return false;
+      || url.searchParams.get('temporary-chat') !== this.temporaryChatParameter || url.searchParams.get('call') !== 'true') return false;
     return await this.confirmationDialog().isVisible() && await this.isTemporary();
   }
 
@@ -219,6 +219,7 @@ export class VoiceBrowser {
     this.endTask = null;
     this.preparedAt = null;
     this.temporaryVerified = false;
+    this.temporaryChatParameter = undefined;
     this.historyWriteBlocked = false;
     await this.page.goto(callUrl(config.baseUrl), { waitUntil: 'domcontentloaded', timeout: 30000 });
 
@@ -252,6 +253,17 @@ export class VoiceBrowser {
         if (!await this.isTemporary()) {
           throw userError('Temporary chat is not enabled or could not be verified. Call was not started.');
         }
+        // WebUI may consume the temporary-chat query parameter after applying it.
+        // Bind subsequent checks to this positively verified URL state, rather
+        // than requiring a one-shot activation parameter to remain in the URL.
+        const preparedUrl = new URL(this.page.url());
+        const temporaryParameter = preparedUrl.searchParams.get('temporary-chat');
+        if (preparedUrl.origin !== new URL(config.baseUrl).origin || preparedUrl.pathname !== '/'
+          || preparedUrl.searchParams.get('call') !== 'true'
+          || (temporaryParameter !== 'true' && temporaryParameter !== null)) {
+          throw userError('Temporary chat changed before standby was ready. Call was not started.');
+        }
+        this.temporaryChatParameter = temporaryParameter;
         this.temporaryVerified = true;
         await this.assertIdleMedia();
         if (config.standbyMinimized && config.windowMode !== 'headless') await this.minimize();
@@ -310,20 +322,20 @@ export class VoiceBrowser {
       // before arming, so a changed/stale page can never bypass the start guards.
       const result = await this.confirmationDialog().getByRole('button', {
         name: this.config.selectors.confirmationButtonName, exact: true
-      }).evaluateAll((buttons, origin) => {
+      }).evaluateAll((buttons, { origin, temporaryParameter }) => {
         if (buttons.length > 1) return 'ambiguous';
         if (!buttons.length || buttons[0].disabled || buttons[0].getAttribute('aria-disabled') === 'true') return 'not-ready';
         const url = new URL(location.href);
         const checked = document.querySelector('#temporary-chat-button path[d="M8 12L11 15L16 10"]');
         const saved = document.querySelector('#save-temporary-chat-button');
-        if (url.origin !== origin || url.pathname !== '/' || url.searchParams.get('temporary-chat') !== 'true'
+        if (url.origin !== origin || url.pathname !== '/' || url.searchParams.get('temporary-chat') !== temporaryParameter
           || url.searchParams.get('call') !== 'true' || !(checked || saved)) return 'temporary';
         const probe = window.__owuiQuickVoiceCallsMedia;
         if (!probe || probe.status().liveAudioTracks !== 0) return 'media';
         probe.arm();
         buttons[0].click();
         return 'confirmed';
-      }, new URL(this.config.baseUrl).origin);
+      }, { origin: new URL(this.config.baseUrl).origin, temporaryParameter: this.temporaryChatParameter });
       if (result === 'confirmed') return true;
       if (result === 'ambiguous') throw userError('Multiple call confirmation buttons matched. Call was not started.');
       if (result === 'temporary') throw userError('Temporary chat changed before confirmation. Call was not started.');
@@ -361,7 +373,7 @@ export class VoiceBrowser {
     const state = await this.temporaryState();
     if (!this.temporaryVerified || state === 'disabled'
       || url.origin !== new URL(this.config.baseUrl).origin || url.pathname !== '/'
-      || url.searchParams.get('temporary-chat') !== 'true') {
+      || url.searchParams.get('temporary-chat') !== this.temporaryChatParameter) {
       throw userError('Temporary-chat state changed. Call stopped.');
     }
   }

@@ -22,7 +22,7 @@ test('history write guard is origin scoped and allows reads', () => {
 });
 
 // These are UI automation fixtures, NOT evidence of real microphone/speaker operation.
-function fixture({ temporary = true, hideTemporaryOnConnect = false } = {}) {
+function fixture({ temporary = true, hideTemporaryOnConnect = false, consumeTemporaryParameter = false } = {}) {
   return `<!doctype html><html><body>
     <button id="temporary-chat-button"><svg><path d="${temporary ? 'M8 12L11 15L16 10' : 'other'}"></path></svg></button>
     <div role="dialog" aria-label="Unrelated confirmation"><button>Confirm</button></div>
@@ -34,6 +34,11 @@ function fixture({ temporary = true, hideTemporaryOnConnect = false } = {}) {
       <p class="status-label">Listening</p><button id="end">End call</button>
     </section>
     <script>
+      if (${consumeTemporaryParameter}) {
+        const url = new URL(location.href);
+        url.searchParams.delete('temporary-chat');
+        history.replaceState(null, '', url);
+      }
       window.confirmed = false; window.ended = false; window.toolbarEndClicked = false;
       document.querySelector('#toolbar-end').onclick = () => { window.toolbarEndClicked = true; };
       document.querySelector('#confirm').onclick = (event) => {
@@ -170,6 +175,41 @@ test('expanded call view may remove the verified temporary-chat navbar', async (
   assert.equal(await browser.temporaryState(), 'unavailable');
   await assert.doesNotReject(browser.assertTemporaryCall());
   await assert.rejects(browser.monitor(AbortSignal.timeout(50), () => {}), { name: 'AbortError' });
+});
+
+test('WebUI may consume the temporary-chat parameter after enabling temporary mode', async (t) => {
+  const browser = await browserFixture(t, { consumeTemporaryParameter: true, hideTemporaryOnConnect: true });
+  const signal = new AbortController().signal;
+  await browser.prepare({ signal });
+  assert.equal(new URL(browser.page.url()).searchParams.get('temporary-chat'), null);
+  assert.equal(await browser.isTemporary(), true);
+  assert.equal(await browser.isPrepared(), true);
+  const preparedAt = browser.preparedAt;
+  await browser.prepare({ signal });
+  assert.equal(browser.preparedAt, preparedAt);
+  await browser.startCall({ signal });
+  assert.equal(await browser.connected(), true);
+  await assert.doesNotReject(browser.assertTemporaryCall());
+});
+
+test('a consumed temporary-chat parameter never substitutes for enabled temporary mode', async (t) => {
+  const browser = await browserFixture(t, { temporary: false, consumeTemporaryParameter: true });
+  await assert.rejects(browser.prepare({ signal: new AbortController().signal }), /Temporary chat is not enabled/);
+  assert.equal(await browser.page.evaluate(() => window.confirmed), false);
+});
+
+test('temporary mode and URL remain guarded after the activation parameter is consumed', async (t) => {
+  const browser = await browserFixture(t, { consumeTemporaryParameter: true });
+  const signal = new AbortController().signal;
+  await browser.prepare({ signal });
+  await browser.page.evaluate(() => document.querySelector('#temporary-chat-button path').setAttribute('d', 'other'));
+  await assert.rejects(browser.startCall({ signal }), /Temporary-chat state changed/);
+  assert.equal(await browser.page.evaluate(() => window.confirmed), false);
+  await browser.page.evaluate(() => {
+    document.querySelector('#temporary-chat-button path').setAttribute('d', 'M8 12L11 15L16 10');
+    history.replaceState(null, '', '/c/another-chat');
+  });
+  await assert.rejects(browser.startCall({ signal }), /Temporary-chat state changed/);
 });
 
 test('explicitly disabled temporary mode or navigation out of temporary chat is rejected', async (t) => {
